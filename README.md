@@ -1,4 +1,4 @@
-#Organizacion y Arquitectura de Computadoras
+# Organizacion y Arquitectura de Computadoras
 ============================================
 
 ## Tabla de contenidos
