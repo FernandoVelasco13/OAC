@@ -45,49 +45,87 @@ instance Show ExpReg where
 ------------------- DENOTACIÓN -----------------------
 
 -- EJERCICIO 1
+-- | Nombre: simpl
+-- Descripcion: Simplifica una expresion regular usando equivalencias.
+-- Especificacion:
+--   * Entrada: Una expresion regular.
+--   * Salida: La expresion regular simplificada.
+-- Nota sobre el auxiliar: Usamos simplCom para calcular la simplificacion y simpl se encargara de
+-- asegurar que la expresion regular no se pueda simplificar mas. Si la expresion regular es igual
+-- despues de simplificarla la regresa, de lo contrario toma la simplificacion y hace recursion sobre esta.
 simpl :: ExpReg -> ExpReg
 simpl er  | er == (simplCom er) = er | otherwise = simpl (simplCom er)
 
 -- EJERCICIO 2
+-- | Nombre: denot
+-- Descripcion: Denota el lenguaje de una expresion regular dada.
+-- Especificacion:
+--   * Entrada: Una expresion regular.
+--   * Salida: El lenguaje que denota la expresion regular.
+-- Nota sobre el auxiliar: Usamos denotAuxiliar para construir el lenguaje asociado a la expresion regular
+-- y denot se encarga, en principio, de simplificar la expresion regular, despues construye el lenguaje y por ultimo
+-- se encarga de eliminar los elementos repetidos si es que hay.
 denot :: ExpReg -> Lenguaje
 denot = nub . denotAuxiliar . simpl
 
 -- EJERCICIO 3
+-- | Nombre: enLeng
+-- Descripcion: Nos indica si una cadena pertenece al lenguaje asociado a una expresion regular dada.
+-- Especificacion:
+--   * Entrada: Una cadena y una expresion regular.
+--   * Salida: Regresa <True> si la cadena pertenece al lenguaje asociado a la expresion regular.
+--                     <False> en otro caso.
 enLeng :: String -> ExpReg -> Bool
 enLeng s er = s `elem` (denot er) 
 
 ------------------- DERIVADAS -----------------------
 
 -- EJERCICIO 4
---Función que calcula la derivada de una ER con respecto de una cadena
+-- | Nombre: derivadaCad
+-- Descripcion: Función que calcula la derivada de una ER con respecto de una cadena.
+-- Especificacion:
+--   * Entrada: Una cadena y una expreson regular.
+--   * Salida: La expresion regular resultante de aplicar la derivada.
+-- Nota sobre el auxiliar: Usamos derivadaSim para realizar la derivada de una ER con respecto de un simbolo.
 derivadaCad :: String -> ExpReg -> ExpReg
 derivadaCad "" r = simpl r
 derivadaCad w r = derivadaCad (tail w) (derivadaSim (head w) r)
 
 -- EJERCICIO 5
---Funcion que verifica si r~u, pertenencia de una cadena en L[r] por medio de la derivada de ER
+-- | Nombre: enLengDeriv
+-- Descripcion: Funcion que verifica si r~u, pertenencia de una cadena en L[r] por medio de la derivada de ER.
+-- Especificacion:
+--   * Entrada: Una cadena y una expresion regular.
+--   * Salida: Regresa <True> si la cadena pertenece al lenguaje asociado a la expresion regular.
+--                     <False> en otro caso.
 enLengDeriv :: String -> ExpReg -> Bool
 enLengDeriv w r = "" `elem` (denot (derivadaCad w r))
 
 
 -- Funciones Auxiliares
 
--- denotAuxiliar nos permite generar el lenguaje dada una expresion regular, pero con una expresion regular simplificada.
--- Por lo que es necesario para hacer composicion de funciones en denot.
+-- | Nombre: denotAuxiliar
+-- Descripcion: Funcion auxiliar para calcular el lenguaje asociada a una expresion regular.
+-- Justificacion: Esta funcion nos permite realizar construir el lenguaje directamente con la expresion regular,
+-- sin preocuparnos inicialmente de que este simplificada y si en el lenguaje resultante hay elementos repetidos,
+-- pues de eso se encarga la funcion principal denot.
 denotAuxiliar :: ExpReg -> Lenguaje
 denotAuxiliar Void = []
 denotAuxiliar Epsilon = [""]
 denotAuxiliar (Symbol a) = [[a]]
-denotAuxiliar (Star er) = take 1000 (concat potencias)
+denotAuxiliar (Star er) = take 1000 (concat potencias) -- ^ Se toman 1000 elementos para limitar la estrella de Kleene.
   where
+    -- ^ Para realizar el calculo de la estrella de Kleene, lo construimos iterativamente, construyendo potencia por potencia.
     lenguaje = denot er
     potenciaN leng = [x ++ y | x <- leng, y <- lenguaje]
     potencias = iterate potenciaN [""]
 denotAuxiliar (Concat er1 er2) = [x ++ y | x <- denotAuxiliar er1, y <- denotAuxiliar er2]
 denotAuxiliar (Add er1 er2) = (denotAuxiliar er1) `union` (denotAuxiliar er2)
 
--- nulidad nos permite calcular si una ER es anulable o no.
--- Es necesaria para realizar el calculo de la derivada de una ER con respecto a un simbolo.
+-- | Nombre: nulidad
+-- Descripcion: Funcion auxiliar que nos permite calcular si una ER es anulable o no.
+-- Justificacion: Es necesaria para realizar el calculo de la derivada de una ER con respecto a una cadena. Pues el caso de
+-- la derivada de la concatenacion de dos lenguajes requiere esta funcion.
 nulidad :: ExpReg -> ExpReg
 nulidad Void = Void
 nulidad Epsilon = Epsilon
@@ -96,8 +134,10 @@ nulidad (Add er1 er2) = simpl (Add (nulidad er1) (nulidad er2))
 nulidad (Concat er1 er2) = simpl (Concat (nulidad er1) (nulidad er2))
 nulidad (Star er) = Epsilon
 
--- derivadaSim nos permite calcular la derivada de una ER con respector de un simbolo.
--- Es necesario para la funcion derivadaCad.
+-- | Nombre: derivadaSim
+-- Descripcion: Funcion auxiliar que nos permite calcular la derivada de una ER con respecto de un simbolo.
+-- Justificacion: Es necesaria pues la derivada de una ER con respecto a una cadena, realiza la derivada de cada simbolo
+-- en la cadena.
 derivadaSim :: Char -> ExpReg -> ExpReg
 derivadaSim a Void = Void
 derivadaSim a Epsilon = Void
@@ -106,8 +146,10 @@ derivadaSim a (Add er1 er2) = simpl (Add (derivadaSim a er1) (derivadaSim a er2)
 derivadaSim a (Concat er1 er2) = simpl (Add (Concat (derivadaSim a er1) er2) (Concat (nulidad er1) (derivadaSim a er2)))
 derivadaSim a (Star er) = simpl (Concat (derivadaSim a er) (Star er))
 
--- simplCom nos permite simplificar una expresion regular.
--- Es
+-- | Nombre: simplCom
+-- Descripcion: Funcion auxiliar que nos permite simplificar una expresion regular.
+-- Justificacion: Esta funcion nos permite realizar la simplificacion de la ER por un lado y con la funcion principal simpl,
+-- verificar que esta es la mayor simplificacion.
 simplCom :: ExpReg -> ExpReg
 simplCom Void = Void
 simplCom Epsilon = Epsilon
@@ -129,6 +171,7 @@ simplCom (Add er1 er2) | er1 == er2 = simplCom er1
 simplCom (Add Void er) = simplCom er
 simplCom (Add er Void) = simplCom er
 simplCom (Add er1 er2) = Add (simplCom er1) (simplCom er2)
+
 
 -- Ejemplos:
 -- Cadenas:
